@@ -1,0 +1,242 @@
+import React, { useMemo, useState } from "react";
+import { Calculator, DollarSign, Coins, Receipt, Sparkles } from "lucide-react";
+
+// --- Utility helpers ---
+const clampNumber = (n: number, min = 0, max = Number.MAX_SAFE_INTEGER) =>
+  Number.isFinite(n) ? Math.min(Math.max(n, min), max) : 0;
+
+const parseNum = (v: string) => {
+  // strip currency symbols/commas/spaces
+  const cleaned = v.replace(/[^0-9.\-]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatAUD = (n: number) =>
+  new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 2 }).format(
+    isNaN(n) ? 0 : n
+  );
+
+export default function APSavingsCalculator() {
+  const [manualCost, setManualCost] = useState<string>("16");
+  const [autoCost, setAutoCost] = useState<string>("3");
+  const [invoices, setInvoices] = useState<string>("1000"); // default monthly volume
+
+  const manual = useMemo(() => clampNumber(parseNum(manualCost), 0, 1_000_000), [manualCost]);
+  const automated = useMemo(() => clampNumber(parseNum(autoCost), 0, 1_000_000), [autoCost]);
+  const volume = useMemo(() => clampNumber(parseNum(invoices), 0, 100_000_000), [invoices]);
+
+  const savingPerInvoice = Math.max(0, manual - automated);
+  const totalSavings = savingPerInvoice * volume;
+  const annualSavings = totalSavings * 12; // if user treats input as monthly volume
+
+  const costManualTotal = manual * volume;
+  const costAutoTotal = automated * volume;
+
+  const savingPct = savingPerInvoice > 0 && manual > 0 ? (savingPerInvoice / manual) * 100 : 0;
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 border-b">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-3">
+          <Calculator className="w-6 h-6" />
+          <h1 className="text-xl font-semibold">AP Savings Calculator</h1>
+          <span className="ml-auto inline-flex items-center gap-2 text-sm text-gray-500">
+            <Sparkles className="w-4 h-4" /> Realistic | Manual vs Automated
+          </span>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Inputs Card */}
+        <section className="lg:col-span-5">
+          <div className="bg-white rounded-2xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-4">Inputs</h2>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="manualCost">
+                  Manual invoice cost (per invoice)
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-400">
+                    <DollarSign className="w-4 h-4" />
+                  </span>
+                  <input
+                    id="manualCost"
+                    inputMode="decimal"
+                    className="w-full rounded-xl border px-9 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="16"
+                    value={manualCost}
+                    onChange={(e) => setManualCost(e.target.value)}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Default ${""}16.00 — your current fully loaded processing cost per invoice.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="autoCost">
+                  Automated invoice cost (per invoice)
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-400">
+                    <DollarSign className="w-4 h-4" />
+                  </span>
+                  <input
+                    id="autoCost"
+                    inputMode="decimal"
+                    className="w-full rounded-xl border px-9 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="3"
+                    value={autoCost}
+                    onChange={(e) => setAutoCost(e.target.value)}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Default ${""}3.00 — target per-invoice cost with automation/APaaS.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="invoices">
+                  Invoices processed (per month)
+                </label>
+                <input
+                  id="invoices"
+                  inputMode="numeric"
+                  className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1000"
+                  value={invoices}
+                  onChange={(e) => setInvoices(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-gray-500">We treat this as a monthly volume to also show annualised savings.</p>
+              </div>
+
+              {/* Quick sliders (optional UX sugar) */}
+              <div className="pt-1">
+                <details className="group">
+                  <summary className="text-sm text-gray-600 cursor-pointer select-none">Quick adjust</summary>
+                  <div className="mt-2 space-y-3">
+                    <div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={50}
+                        step={0.5}
+                        value={manual}
+                        onChange={(e) => setManualCost(e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>0</span>
+                        <span>{formatAUD(manual)}</span>
+                        <span>50</span>
+                      </div>
+                    </div>
+                    <div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={20}
+                        step={0.25}
+                        value={automated}
+                        onChange={(e) => setAutoCost(e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>0</span>
+                        <span>{formatAUD(automated)}</span>
+                        <span>20</span>
+                      </div>
+                    </div>
+                    <div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={50000}
+                        step={100}
+                        value={volume}
+                        onChange={(e) => setInvoices(e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>0</span>
+                        <span>{volume.toLocaleString()}</span>
+                        <span>50,000</span>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Results Card */}
+        <section className="lg:col-span-7">
+          <div className="bg-white rounded-2xl shadow p-5">
+            <h2 className="text-lg font-semibold mb-4">Results</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border p-4">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <Receipt className="w-4 h-4" />
+                  <span className="text-sm">Saving per invoice</span>
+                </div>
+                <div className="text-2xl font-semibold">{formatAUD(savingPerInvoice)}</div>
+                <p className="text-xs text-gray-500 mt-1">{savingPct.toFixed(0)}% reduction vs manual</p>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <Coins className="w-4 h-4" />
+                  <span className="text-sm">Total monthly savings</span>
+                </div>
+                <div className="text-2xl font-semibold">{formatAUD(totalSavings)}</div>
+                <p className="text-xs text-gray-500 mt-1">{volume.toLocaleString()} invoices × {formatAUD(savingPerInvoice)}</p>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="text-sm">Annualised savings</span>
+                </div>
+                <div className="text-2xl font-semibold">{formatAUD(annualSavings)}</div>
+                <p className="text-xs text-gray-500 mt-1">Assumes the above volume is monthly.</p>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="text-sm">Manual vs Automated cost (monthly)</span>
+                </div>
+                <div className="text-sm grid grid-cols-2 gap-2 mt-1">
+                  <div className="rounded-lg bg-red-50 border p-3">
+                    <div className="text-xs text-red-600">Manual total</div>
+                    <div className="font-semibold">{formatAUD(costManualTotal)}</div>
+                  </div>
+                  <div className="rounded-lg bg-green-50 border p-3">
+                    <div className="text-xs text-green-700">Automated total</div>
+                    <div className="font-semibold">{formatAUD(costAutoTotal)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA / tips */}
+            <div className="mt-6 rounded-xl bg-blue-50 border border-blue-200 p-4">
+              <p className="text-sm text-blue-900">
+                Tip: set Manual = $16 and Automated = $3 to model a <span className="font-semibold">${""}13</span> per-invoice saving. Enter your monthly
+                invoice volume to instantly see total savings.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="max-w-5xl mx-auto px-4 pb-10 text-xs text-gray-500">
+        <div className="mt-4">
+          Figures are illustrative only and use Australian currency formatting. For full ROI (including platform fees, FTE changes, and
+          working capital), we can extend this page with additional inputs.
+        </div>
+      </footer>
+    </div>
+  );
+}
